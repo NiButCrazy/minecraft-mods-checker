@@ -307,6 +307,14 @@ export async function readJarMeta(file: File): Promise<ModEntry> {
 
   try {
     const texts = await readMetadataTexts(file);
+    // 以 mods.toml 结尾的元数据统一视为 Forge(含 neoforge.mods.toml),优先级最高
+    const tomlName = Object.keys(texts)
+      .filter((name) => name.toLowerCase().endsWith("mods.toml"))
+      .sort((a, b) => modsTomlPriority(a) - modsTomlPriority(b))[0];
+    if (tomlName) {
+      const m = parseModsToml(texts[tomlName]);
+      if (m) return make(m, "forge", tomlName);
+    }
     if (texts["quilt.mod.json"]) {
       const m = parseQuilt(texts["quilt.mod.json"]);
       if (m) return make(m, "quilt", "quilt.mod.json");
@@ -314,13 +322,6 @@ export async function readJarMeta(file: File): Promise<ModEntry> {
     if (texts["fabric.mod.json"]) {
       const m = parseFabric(texts["fabric.mod.json"]);
       if (m) return make(m, "fabric", "fabric.mod.json");
-    }
-    const tomlName = Object.keys(texts)
-      .filter((name) => name.toLowerCase().endsWith("mods.toml"))
-      .sort((a, b) => modsTomlPriority(a) - modsTomlPriority(b))[0];
-    if (tomlName) {
-      const m = parseModsToml(texts[tomlName]);
-      if (m) return make(m, "forge", tomlName);
     }
   } catch {
     // 非 zip 或损坏,回退文件名解析

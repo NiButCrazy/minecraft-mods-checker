@@ -53,7 +53,7 @@ python tests/make_sample_mods.py
 python main.py tests/sample/1.20.1-示例整合包
 ```
 
-模组信息优先读取 jar 内元数据(Fabric/Quilt 的 json 元数据;所有以 mods.toml 结尾的元数据,含 neoforge.mods.toml,统一视为 Forge),读取失败时回退解析文件名。以 `.jar.disabled` 结尾的模组会被标注为「已禁用」。
+模组信息优先读取 jar 内元数据:以 mods.toml 结尾的元数据(含 neoforge.mods.toml)统一视为 **Forge 且优先级最高**,其次为 Fabric/Quilt 的 json 元数据;读取失败时回退解析文件名。以 `.jar.disabled` 结尾的模组会被标注为「已禁用」。
 
 导出位置默认为游戏根目录(GUI 界面中可直接修改,CLI 用 `-o` 指定),文件名为 `<游戏目录名>-<日期>.html`。
 

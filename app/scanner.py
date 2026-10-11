@@ -174,16 +174,7 @@ def read_jar_meta(jar: Path) -> dict:
                 except (KeyError, OSError):
                     return ""
 
-            for entry_name, parser, loader in (
-                ("quilt.mod.json", parse_quilt, "quilt"),
-                ("fabric.mod.json", parse_fabric, "fabric"),
-            ):
-                if entry_name in names:
-                    meta = parser(read_entry(entry_name))
-                    if meta:
-                        return make(meta, loader, entry_name)
-
-            # 以 mods.toml 结尾的元数据统一视为 Forge(含 neoforge.mods.toml)
+            # 以 mods.toml 结尾的元数据统一视为 Forge(含 neoforge.mods.toml),优先级最高
             toml_names = sorted(
                 (n for n in names if n.lower().endswith("mods.toml")),
                 key=_mods_toml_priority,
@@ -192,6 +183,15 @@ def read_jar_meta(jar: Path) -> dict:
                 meta = parse_mods_toml(read_entry(entry_name))
                 if meta:
                     return make(meta, "forge", entry_name)
+
+            for entry_name, parser, loader in (
+                ("quilt.mod.json", parse_quilt, "quilt"),
+                ("fabric.mod.json", parse_fabric, "fabric"),
+            ):
+                if entry_name in names:
+                    meta = parser(read_entry(entry_name))
+                    if meta:
+                        return make(meta, loader, entry_name)
     except (zipfile.BadZipFile, OSError):
         pass
 

@@ -15,7 +15,7 @@ type ExcludeBinding = "double" | "single" | "ctrl" | "context";
 type ExcludeKey = "none" | "delete" | "backspace" | "e";
 type Slot = "base" | "target";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 const APP_AUTHOR = "Ni But Crazy";
 const SETTINGS_KEY = "mc-mods-checker:settings";
 

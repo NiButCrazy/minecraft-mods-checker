@@ -10,5 +10,5 @@
 - pack:      打包为单文件应用(.pyz)
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Ni But Crazy"

@@ -145,6 +145,23 @@ describe("readJarMeta", () => {
     });
   });
 
+  it("mods.toml 优先级最高:fabric.mod.json 与 mods.toml 同时存在时判为 forge", async () => {
+    const bytes = await buildZip([
+      { name: "fabric.mod.json", content: FABRIC_JSON },
+      {
+        name: "META-INF/mods.toml",
+        content: 'modLoader="javafml"\n[[mods]]\nmodId="hybrid"\nversion="1.0.0"\ndisplayName="Hybrid"\n',
+      },
+    ]);
+    const meta = await readJarMeta(new File([bytes as BlobPart], "hybrid-example-1.0.0.jar"));
+    expect(meta).toMatchObject({
+      id: "hybrid",
+      name: "Hybrid",
+      loader: "forge",
+      source: "META-INF/mods.toml",
+    });
+  });
+
   it("识别 .jar.disabled 为已禁用", async () => {
     const bytes = await buildZip([{ name: "fabric.mod.json", content: FABRIC_JSON }]);
     const meta = await readJarMeta(new File([bytes as BlobPart], "sodium-fabric-mc1.20.1-0.6.0.jar.disabled"));

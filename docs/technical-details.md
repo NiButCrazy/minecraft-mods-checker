@@ -95,13 +95,15 @@
 
 ### 4.2 jar 元数据读取(`scanner.read_jar_meta` / `jarscan.readJarMeta`)
 
-按以下优先级匹配 jar 内条目:
+按以下优先级(从高到低,先匹配到即采用)读取 jar 内条目:
 
 | 条目 | 加载器 | 说明 |
 | --- | --- | --- |
+| 任意 `*mods.toml` | forge | **优先级最高**;统一视为 Forge;条目间顺序 neoforge.mods.toml > META-INF/mods.toml > 其它;取第一个含 `modId` 的 `[[mods]]` 块,`displayName` 缺失时用 `modId` |
 | `quilt.mod.json` | quilt | 取 `quilt_loader.id/version`、`metadata.name` |
 | `fabric.mod.json` | fabric | 取 `id`/`version`/`name` |
-| 任意 `*mods.toml` | forge | 统一视为 Forge;优先级 neoforge.mods.toml > META-INF/mods.toml > 其它;取第一个含 `modId` 的 `[[mods]]` 块,`displayName` 缺失时用 `modId` |
+
+混合包(同时含 mods.toml 与 fabric/quilt 元数据)按 Forge 处理。
 
 - 版本为占位符(以 `${` 开头,如 `${file.jarVersion}`)时回退文件名解析的版本。
 - 全部失败(jar 损坏/无元数据)时回退文件名解析,`loader = "unknown"`、`source = "filename"`。

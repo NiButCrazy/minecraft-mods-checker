@@ -64,6 +64,11 @@ def main() -> None:
     write_jar(base / "exampleforge-1.20.1-2.1.0.jar", forge("exampleforge", "Example Forge Mod"))
     write_jar(base / "quilt-example-1.0.0.jar", quilt("quiltexample", "Quilt Example", "1.0.0"))
     write_jar(base / "disabled-example-2.0.jar.disabled", fabric("disabledexample", "Disabled Example", "2.0"))
+    # 混合包:fabric.mod.json 与 mods.toml 同时存在,应判为 Forge(mods.toml 优先级最高)
+    write_jar(
+        base / "hybrid-example-1.20.1-1.0.0.jar",
+        {**fabric("hybrid", "Hybrid Example", "1.0.0"), **forge("hybrid", "Hybrid Example")},
+    )
     (base / "broken.jar").write_bytes(b"this is not a zip file")
 
     # 更新后的包:升级 sodium、降级 legacy、移除 fabric-api、新增 lithium 与 neoforge 模组
@@ -74,6 +79,10 @@ def main() -> None:
     write_jar(updated / "exampleforge-1.20.1-2.1.0.jar", forge("exampleforge", "Example Forge Mod"))
     write_jar(updated / "quilt-example-1.0.0.jar", quilt("quiltexample", "Quilt Example", "1.0.0"))
     write_jar(updated / "disabled-example-2.0.jar.disabled", fabric("disabledexample", "Disabled Example", "2.0"))
+    write_jar(
+        updated / "hybrid-example-1.20.1-1.0.0.jar",
+        {**fabric("hybrid", "Hybrid Example", "1.0.0"), **forge("hybrid", "Hybrid Example")},
+    )
     write_jar(
         updated / "neoforge-example-1.20.1-1.0.0.jar",
         forge("neoforgeexample", "NeoForge Example", "META-INF/neoforge.mods.toml"),
