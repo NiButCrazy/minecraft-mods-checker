@@ -6,6 +6,7 @@
 配色跟随系统深色/浅色(Windows),并定时检测变化自动切换。
 """
 
+import base64
 import os
 import queue
 import re
@@ -14,7 +15,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from .constants import APP_ICON_BASE64
+from .constants import app_icon_png
 from .exporter import default_output_path, export_html
 from .scanner import ScanError, build_scan_data, system_identity
 
@@ -457,10 +458,11 @@ class App:
 def launch_gui(args) -> None:
     root = tk.Tk()
     try:
-        icon_image = tk.PhotoImage(data=APP_ICON_BASE64)
+        # 图标来源:app/assets/logo.png(zipapp 模式下从归档读取)
+        icon_image = tk.PhotoImage(data=base64.b64encode(app_icon_png()).decode("ascii"))
         root.iconphoto(True, icon_image)
         # icon_image 作为局部变量在 mainloop 期间保持存活
-    except tk.TclError:
+    except (tk.TclError, OSError):
         pass
     App(root, args)
     root.mainloop()

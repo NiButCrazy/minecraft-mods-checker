@@ -28,12 +28,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="打包为单文件应用(.pyz,运行需 Python 3.11+,不包含 Python 本身)",
     )
+    parser.add_argument(
+        "--exe",
+        action="store_true",
+        help="配合 --pack(或单独使用):额外生成带图标的轻量 exe(不打包 Python,运行需已装 Python)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.pack:
+    if args.pack or args.exe:
         return _run_pack(args)
     if args.gui or (not args.path and not args.cli):
         from .gui import launch_gui  # 延迟导入,保证无 Tk 环境的 CLI 可用
@@ -44,14 +49,19 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_pack(args: argparse.Namespace) -> int:
-    from .pack import PackError, build_app_archive
+    from .pack import PackError, build_app_archive, build_exe_archive
 
     output = Path(args.output) if args.output else PROJECT_ROOT / "main.pyz"
     try:
         built = build_app_archive(output)
+        print(f"已生成单文件应用:{built}")
+        if args.exe:
+            exe_path = build_exe_archive(built, built.with_suffix(".exe"))
+            print(f"已生成带图标 exe:{exe_path}")
     except PackError as exc:
         print(f"打包失败:{exc}", file=sys.stderr)
         return 1
-    print(f"已生成单文件应用:{built}")
     print(f"运行方式:python {built.name} [目录]  (需已安装 Python 3.11+)")
+    if args.exe:
+        print(f"或双击 {built.with_suffix('.exe').name} 运行(轻量壳,目标机器需已装 Python)")
     return 0

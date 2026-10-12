@@ -30,7 +30,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | `main.py` | 薄入口,调用 `app.app.main` |
-| `app/constants.py` | `PROJECT_ROOT`、`DEFAULT_TEMPLATE`(web/dist/index.html)、内嵌窗口图标 `APP_ICON_BASE64` |
+| `app/constants.py` | `PROJECT_ROOT`、`DEFAULT_TEMPLATE`(web/dist/index.html)、`app_icon_png()`(读取 `app/assets/logo.png`,zipapp 时从归档读取) |
 | `app/scanner.py` | 目录识别、jar 元数据读取、`build_scan_data` 生成注入数据 |
 | `app/exporter.py` | 模板加载(文件系统/归档)、资源内联、数据注入、`export_html` |
 | `app/cli.py` | CLI 表格输出(`print_mod_table`)与 `run_cli` |
@@ -208,14 +208,33 @@ App 内有一个 `useLayoutEffect`(首个绘制前执行)负责解析主题设�
 
 集中在 `style.css`:卡片与统计区入场 `fade-in-up`、对比结果面板出现时 `fade-in-up`、弹窗 `fade-in` + `pop-in`、提示横幅 `slide-down`、扫描进度 `fade-in`、统计数字随数值变化重放 `stat-pop`(React 以数值作 key 触发重挂载)、按钮悬停/按压反馈、行悬停背景过渡;主题切换时背景/文字/边框色做 0.22s 平滑过渡。所有动画在系统开启「减少动态效果」(`prefers-reduced-motion: reduce`)时自动禁用。列表行刻意不加动画,避免筛选/搜索时大量行重放入场动画。
 
-## 5. 打包为单文件应用(zipapp)
+## 5. 打包为单文件应用(pyz 与带图标 exe)
+
+### 5.1 pyz
 
 `python main.py --pack [-o main.pyz]`(`app/pack.py`)将 `app/` 与 `web/dist/` 复制到临时目录,写入 zipapp 入口 `__main__.py`,由标准库 `zipapp` 压缩为单个 `.pyz` 文件:
 
 - 归档入口为 `app.app:main`,运行方式 `python main.pyz [目录]`(无参数启动 GUI);
+- **pyz 必须是纯 zip,不写 zipapp 的 interpreter shebang**(原因见 5.2 约束 1);因此不提供 Linux 下 `./main.pyz` 直接执行,统一用 `python main.pyz`;
 - 目标机器只需安装 Python 3.11+,**不包含 Python 运行时本身**,无任何第三方依赖;
 - 运行时的模板定位:模块 `__file__` 位于归档内(形如 `<app>.pyz/app/exporter.py`),`_find_archive` 通过“上一级路径是 zip 文件”判定,再从归档直接读取 `web/dist/**`(JS/CSS/favicon 内联照常工作);
 - 打包前必须已执行 `vp build`(`pack` 会校验 `web/dist/index.html` 存在);web 界面更新后需重新打包。
+
+### 5.2 带图标的轻量 exe(仅 Windows)
+
+`python main.py --pack --exe` 额外生成 `main.exe`(约 200KB),组成:
+
+```
+[distlib PEP 397 启动器(pip 内置 w64.exe)] + [rcedit 写入图标] + [追加 "#!<pythonw 路径>" + pyz 数据]
+```
+
+- 启动器来自 pip 自带的 `pip._vendor.distlib`(回退顶层 distlib 包),**不内置 Python 运行时**,目标机器需已安装 Python 3.11+;
+- 图标由 `app/assets/logo.png`(与 GUI 窗口图标同一来源)生成 ICO(PNG 负载,256 尺寸),用 pyndler 自带的 rcedit 写入(打包期需 `pip install pyndler`;pyndler 原版 `build_exe` 漏写 shebang、产物不可用,这里只复用其 rcedit);
+- **两个必须遵守的约束(踩坑记录)**:
+  1. pyz 不能带 zipapp interpreter shebang——启动器从文件尾部回扫 `#!` 会误选 pyz 内部的 `/usr/bin/env python3`,Windows 上报 9009;
+  2. 顺序必须先刷图标再追加数据——PE 资源重写会丢弃文件尾部的叠加数据;
+- exe 使用 GUI 子系统(w64),且 shebang 指向 **pythonw.exe**(回退 python.exe):实测指向 python.exe 时子进程会分配并显示控制台窗口,换成 pythonw 后 `GetConsoleWindow()=0`,双击完全无黑窗;
+- 代价:通过 exe 走 CLI 时终端交互输出不可见(重定向到管道/文件仍然可用,pythonw 会继承句柄);完整 CLI 体验请用 pyz 或源码入口。
 
 ## 6. 测试
 

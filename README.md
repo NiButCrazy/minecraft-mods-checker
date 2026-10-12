@@ -43,7 +43,8 @@ python main.py
 
 ```
 python main.py --pack          # 生成 main.pyz
-python main.pyz <目录>         # 运行
+python main.py --pack --exe    # 额外生成带图标的 main.exe(Windows,轻量壳,约 200KB)
+python main.pyz <目录>         # 运行(pyz 或 exe 均可,exe 可直接双击)
 ```
 
 **生成示例数据**(可选,用于体验对比效果):

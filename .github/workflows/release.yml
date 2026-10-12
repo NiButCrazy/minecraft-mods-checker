@@ -1,4 +1,4 @@
-# 构建发行版:构建 web 界面 → 打包单文件应用 → 生成更新日志 → 创建 Release
+# 构建发行版:构建 web 界面 → 打包单文件应用(pyz + 带图标 exe)→ 生成更新日志 → 创建 Release
 name: 发行版
 
 on:
@@ -12,7 +12,11 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # exe 打包(PE 资源写入)依赖 Windows,统一在 Windows runner 上构建
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: 检出代码
@@ -45,22 +49,29 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: 安装打包工具
+        run: pip install pyndler  # 提供 rcedit(写入 exe 图标)
+
       - name: CLI 冒烟测试
         run: |
           python tests/make_sample_mods.py
           python main.py "tests/sample/1.20.1-示例整合包" --json --no-export > /dev/null
 
-      - name: 打包单文件应用
-        run: python main.py --pack -o main.pyz
+      - name: 打包单文件应用(pyz + exe)
+        run: python main.py --pack --exe -o main.pyz
 
       - name: 打包产物冒烟测试
-        run: python main.pyz "tests/sample/1.20.1-示例整合包/mods" --no-export > /dev/null
+        run: |
+          python main.pyz "tests/sample/1.20.1-示例整合包/mods" --no-export > /dev/null
+          ./main.exe "tests/sample/1.20.1-示例整合包/mods" --no-export > /dev/null
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: main.pyz
-          path: main.pyz
+          name: release-artifacts
+          path: |
+            main.pyz
+            main.exe
 
       - name: 创建更新日志
         if: startsWith(github.ref, 'refs/tags/')
@@ -77,6 +88,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body_path: CHANGELOG_NEW.md
-          files: main.pyz
+          files: |
+            main.pyz
+            main.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

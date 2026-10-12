@@ -48,17 +48,13 @@ python main.py --pack
 
 替换 `web/public/favicon.svg` → `vp build`。Python 导出时会自动把该文件内联为 data URI(`exporter.inline_assets` 的 `icon_repl`),无需改 Python。
 
-### 3.3 更换 GUI 窗口图标
+### 3.3 更换应用图标(GUI 窗口图标与 exe 图标)
 
-Tkinter 不支持 SVG,需 64x64 PNG 的 base64 字符串:
+图标源为单一文件 `app/assets/logo.png`(PNG,建议 256x256;Tkinter 不支持 SVG):
 
-1. 生成 PNG(任意方式),转 base64:
-   ```python
-   import base64
-   print(base64.b64encode(open("icon.png", "rb").read()).decode())
-   ```
-2. 替换 `app/constants.py` 中的 `APP_ICON_BASE64`;
-3. 验证:`python -c "import tkinter as tk; from app.constants import APP_ICON_BASE64; r=tk.Tk(); r.withdraw(); print(tk.PhotoImage(data=APP_ICON_BASE64).width()); r.destroy()"`
+1. 直接替换 `app/assets/logo.png`;
+2. GUI 窗口图标即时生效;exe 图标需重新执行 `python main.py --pack --exe`;
+3. 验证:`python -c "import base64, tkinter as tk; from app.constants import app_icon_png; r=tk.Tk(); r.withdraw(); img=tk.PhotoImage(data=base64.b64encode(app_icon_png()).decode()); print(img.width(), img.height()); r.destroy()"`
 
 ### 3.4 支持新的加载器 / 元数据格式
 
@@ -93,14 +89,17 @@ Tkinter 不支持 SVG,需 64x64 PNG 的 base64 字符串:
 ### 3.8 打包为单文件应用
 
 ```bash
-cd web && vp build          # 必须先构建界面
-python main.py --pack       # 生成 ./main.pyz(可用 -o 指定输出)
-python main.pyz <目录>      # CLI 运行;无参数启动 GUI
+cd web && vp build            # 必须先构建界面
+pip install pyndler           # exe 图标工具(rcedit);只用 pyz 时可跳过
+python main.py --pack         # 生成 ./main.pyz(可用 -o 指定输出)
+python main.py --pack --exe   # 额外生成带图标的 ./main.exe(仅 Windows,约 200KB)
+python main.pyz <目录>        # CLI 运行;无参数启动 GUI(exe 同样)
 ```
 
-- `.pyz` 内固化打包时刻的 `web/dist`,**改动 web 后必须重新打包**;
-- 目标机器只需 Python 3.11+,不含 Python 运行时,无第三方依赖;
-- 原理见技术细节文档第 5 节。改动 `app/` 下任何模块后同样需要重新打包。
+- `.pyz` 内固化打包时刻的 `web/dist`,**改动 web 后必须重新打包**;改动 `app/` 下任何模块后同样需要;
+- 目标机器只需 Python 3.11+,pyz 与 exe 均不含 Python 运行时;
+- exe 为轻量壳(启动器 + 追加 pyz),双击运行无控制台窗口(pythonw 解释器);CLI 交互请用 pyz;
+- 两个坑别踩(详见技术细节文档 5.2):pyz 不能带 zipapp 的 interpreter shebang;必须先刷图标再追加数据。
 
 ## 4. 修改后的检查清单
 
@@ -114,7 +113,7 @@ python main.py tests/sample/1.20.1-示例整合包 --json --no-export
 cd web && vp test                                  # 单测(两端的解析规则有一致性用例)
 ```
 
-若改动涉及 web 界面:额外执行 `vp build` 后重新导出示例 HTML 并打开验证;若发布形态含 `.pyz`,重新执行 `python main.py --pack`。
+若改动涉及 web 界面:额外执行 `vp build` 后重新导出示例 HTML 并打开验证;若发布形态含 `.pyz`/`.exe`,重新执行 `python main.py --pack --exe`。
 
 **手工测试清单(浏览器)**:选择游戏根目录速度、对比结果分类(升/降/增/删)、禁用筛选(含卡片/统计联动)、双击与键盘排除、「排除」选项卡恢复、排序(含修改日期与倒序)、序号列、设置项持久化(刷新后仍生效)、选择文件夹后按钮自动隐藏(悬停卡片再显示)、卡片底部系统信息(用户/电脑名,开关受设置控制)、设置内主题外观(跟随系统/深色/浅色)切换与持久化、系统主题变化时 auto 模式实时跟随、动效(入场/弹窗/统计数字变化),以及系统开启「减少动态效果」后动画被禁用。
 
@@ -148,11 +147,12 @@ minecraft-mods-checker/
 
 `web/node_modules/` 可精简,但 `web/dist` **必须保留**,否则无法导出。
 
-**② 单文件应用**(分发推荐):`python main.py --pack` 生成的 `main.pyz`。分发给使用者时只需该文件 + Python 3.11+ 环境,CLI 与 GUI 均可用(见 3.8)。
+**② 单文件应用**(分发推荐):`python main.py --pack --exe` 生成的 `main.pyz` 与 `main.exe`。分发给使用者时只需文件 + Python 3.11+ 环境,CLI 与 GUI 均可用(见 3.8);exe 可直接双击,适合作为 GUI 入口。
 
 ## 7. 版本记录
 
 | 版本 | 变更 |
 | --- | --- |
+| 1.0.2 | 打包:`--pack --exe` 生成带图标的轻量 exe(distlib 启动器 + rcedit,pythonw 无控制台);应用图标统一为 `app/assets/logo.png`;发行流程改在 Windows runner 构建并同时附带 pyz 与 exe |
 | 1.0.1 | 加载器判定调整:mods.toml(含 neoforge.mods.toml)统一视为 Forge 且优先级最高,混合包判为 Forge |
 | 1.0.0 | 首个版本:目录自动识别、Fabric/Quilt/Forge(含 NeoForge)元数据读取、已禁用标注、CLI/GUI、单文件对比页(筛选/排除/排序/序号/设置持久化/图标内联)、zipapp 单文件打包 |
