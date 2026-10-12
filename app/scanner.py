@@ -5,9 +5,12 @@
 注意:此处的解析规则与 web/src/lib/jarscan.ts 保持一致,修改时必须双端同步。
 """
 
+import getpass
 import json
+import platform
 import re
 import zipfile
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -208,17 +211,42 @@ def read_jar_meta(jar: Path) -> dict:
     }
 
 
-def scan_mods_dir(mods_dir: Path) -> list[dict]:
+def scan_mods_dir(
+    mods_dir: Path,
+    on_progress: Callable[[int, int, str], None] | None = None,
+) -> list[dict]:
+    """扫描目录内全部模组;on_progress(已完成数, 总数, 当前文件名) 可选用于进度显示。"""
     jars = sorted(
         (p for p in mods_dir.iterdir() if p.is_file() and _is_mod_file(p)),
         key=lambda p: p.name.lower(),
     )
-    mods = [read_jar_meta(jar) for jar in jars]
+    total = len(jars)
+    mods = []
+    for index, jar in enumerate(jars, 1):
+        mods.append(read_jar_meta(jar))
+        if on_progress is not None:
+            on_progress(index, total, jar.name)
     mods.sort(key=lambda m: (m["name"].lower(), m["file"].lower()))
     return mods
 
 
-def build_scan_data(path: Path) -> dict:
+def system_identity() -> tuple[str, str]:
+    """(系统用户名, 电脑名称),取不到时为空字符串。"""
+    try:
+        user = getpass.getuser()
+    except Exception:
+        user = ""
+    try:
+        host = platform.node()
+    except Exception:
+        host = ""
+    return user, host
+
+
+def build_scan_data(
+    path: Path,
+    on_progress: Callable[[int, int, str], None] | None = None,
+) -> dict:
     """扫描目录,生成注入 HTML 的完整数据结构(见 docs/technical-details.md)。"""
     path = path.resolve()
     mods_dir, dir_type = detect_mods_dir(path)
@@ -229,6 +257,7 @@ def build_scan_data(path: Path) -> dict:
         dir_name = path.parent.name
     else:
         dir_name = path.name
+    user, host = system_identity()
     return {
         "source": {
             "dir": str(path),
@@ -236,6 +265,8 @@ def build_scan_data(path: Path) -> dict:
             "type": dir_type,
             "scannedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "tool": "main.py",
+            "user": user,
+            "host": host,
         },
-        "mods": scan_mods_dir(mods_dir),
+        "mods": scan_mods_dir(mods_dir, on_progress),
     }

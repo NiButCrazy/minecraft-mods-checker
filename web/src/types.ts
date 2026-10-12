@@ -29,6 +29,10 @@ export interface ScanSource {
   type: "game_root" | "mods";
   scannedAt: string;
   tool?: string;
+  /** 扫描时所在系统的用户名(Python 扫描时记录;浏览器无法获取) */
+  user?: string;
+  /** 扫描时所在电脑名称(Python 扫描时记录;浏览器无法获取) */
+  host?: string;
 }
 
 export interface ScanData {

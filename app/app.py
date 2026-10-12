@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .cli import run_cli
 from .constants import PROJECT_ROOT
-from .gui import launch_gui
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.pack:
         return _run_pack(args)
     if args.gui or (not args.path and not args.cli):
+        from .gui import launch_gui  # 延迟导入,保证无 Tk 环境的 CLI 可用
+
         launch_gui(args)
         return 0
     return run_cli(args)

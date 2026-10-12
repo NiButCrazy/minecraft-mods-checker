@@ -63,7 +63,9 @@
     "dirName": "1.20.1-示例整合包",       // 展示/导出文件名用;选 mods 目录时为上级目录名
     "type": "game_root",                  // game_root | mods
     "scannedAt": "2026-10-11 21:00:00",
-    "tool": "main.py"                     // 浏览器扫描时为 "web"
+    "tool": "main.py",                    // 浏览器扫描时为 "web"
+    "user": "Administrator",              // 系统用户名(Python 采集,GUI 可自定义;浏览器无法获取,字段缺省)
+    "host": "DESKTOP-XXX"                 // 扫描时的电脑名称(浏览器无法获取,字段缺省)
   },
   "mods": [
     {
@@ -182,6 +184,7 @@ target(浏览器扫描)┘
 
 | 字段 | 默认 | 说明 |
 | --- | --- | --- |
+| `theme` | `auto` | 主题外观:auto(跟随系统)/dark/light |
 | `disabledFilter` | `all` | 禁用状态默认项 |
 | `tab` | `all` | 模组列表选项卡默认项(不含已排除) |
 | `sortMode` | `status` | 排序方式(status/name/date) |
@@ -190,8 +193,20 @@ target(浏览器扫描)┘
 | `excludeBinding` | `double` | 鼠标操作方式:double/single/ctrl/context |
 | `excludeKey` | `delete` | 键盘按键:none/delete/backspace/e |
 | `showTooltip` | `true` | 是否显示行操作提示 |
+| `showUser` | `true` | 卡片底部是否显示系统用户名 |
+| `showHost` | `true` | 卡片底部是否显示电脑名称 |
 
 键盘监听在 `INPUT/SELECT/TEXTAREA` 聚焦和设置面板打开时不生效。
+
+### 4.11 界面主题(深色/浅色)
+
+对比页配色全部走 CSS 变量:`:root` 为深色默认值,浅色由 `:root[data-theme="light"]` 覆盖(含加载器徽标、横幅文字等少量硬编码颜色的浅色版本),`color-scheme` 同步声明使滚动条、下拉框等原生控件匹配主题。
+
+App 内有一个 `useLayoutEffect`(首个绘制前执行)负责解析主题设置:设置项 `theme` 为 `auto` 时监听 `matchMedia("(prefers-color-scheme: light)")` 并跟随系统实时切换,`dark`/`light` 为手动覆盖;解析结果写入 `<html data-theme="...">`。新增硬编码颜色时需在 `:root[data-theme="light"]` 下提供覆盖。
+
+### 4.12 动效
+
+集中在 `style.css`:卡片与统计区入场 `fade-in-up`、对比结果面板出现时 `fade-in-up`、弹窗 `fade-in` + `pop-in`、提示横幅 `slide-down`、扫描进度 `fade-in`、统计数字随数值变化重放 `stat-pop`(React 以数值作 key 触发重挂载)、按钮悬停/按压反馈、行悬停背景过渡;主题切换时背景/文字/边框色做 0.22s 平滑过渡。所有动画在系统开启「减少动态效果」(`prefers-reduced-motion: reduce`)时自动禁用。列表行刻意不加动画,避免筛选/搜索时大量行重放入场动画。
 
 ## 5. 打包为单文件应用(zipapp)
 

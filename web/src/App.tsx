@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import type { ScanData } from "./types";
-import { diffMods, type DiffKind, type DiffRow } from "./lib/compare";
+import { diffMods, type DiffKind, type DiffRow, type DiffStats } from "./lib/compare";
 import {
   getDirectoryPicker,
   scanDirectoryHandle,
@@ -13,6 +13,7 @@ type DisabledFilter = "all" | "disabled" | "enabled";
 type SortMode = "status" | "name" | "date";
 type ExcludeBinding = "double" | "single" | "ctrl" | "context";
 type ExcludeKey = "none" | "delete" | "backspace" | "e";
+type ThemeMode = "auto" | "dark" | "light";
 type Slot = "base" | "target";
 
 const APP_VERSION = "1.0.1";
@@ -57,7 +58,14 @@ const KEY_OPTIONS: { id: ExcludeKey; label: string }[] = [
   { id: "e", label: "E" },
 ];
 
+const THEME_OPTIONS: { id: ThemeMode; label: string }[] = [
+  { id: "auto", label: "跟随系统" },
+  { id: "dark", label: "深色" },
+  { id: "light", label: "浅色" },
+];
+
 interface Settings {
+  theme: ThemeMode;
   disabledFilter: DisabledFilter;
   tab: Filter;
   sortMode: SortMode;
@@ -66,9 +74,12 @@ interface Settings {
   excludeBinding: ExcludeBinding;
   excludeKey: ExcludeKey;
   showTooltip: boolean;
+  showUser: boolean;
+  showHost: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
+  theme: "auto",
   disabledFilter: "all",
   tab: "all",
   sortMode: "status",
@@ -77,7 +88,17 @@ const DEFAULT_SETTINGS: Settings = {
   excludeBinding: "double",
   excludeKey: "delete",
   showTooltip: true,
+  showUser: true,
+  showHost: true,
 };
+
+const BOOLEAN_SETTING_KEYS = [
+  "showIndex",
+  "excludeEnabled",
+  "showTooltip",
+  "showUser",
+  "showHost",
+] as const;
 
 function bindingLabel(binding: ExcludeBinding): string {
   return BINDINGS.find((b) => b.id === binding)?.label ?? "双击";
@@ -102,6 +123,10 @@ function loadSettings(): Settings {
     }
     if (!KEY_OPTIONS.some((k) => k.id === settings.excludeKey)) {
       settings.excludeKey = defaults.excludeKey;
+    }
+    if (!THEME_OPTIONS.some((t) => t.id === settings.theme)) settings.theme = defaults.theme;
+    for (const key of BOOLEAN_SETTING_KEYS) {
+      if (typeof settings[key] !== "boolean") settings[key] = defaults[key];
     }
     return settings;
   } catch {
@@ -179,6 +204,22 @@ export default function App() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const baseInput = useRef<HTMLInputElement>(null);
   const targetInput = useRef<HTMLInputElement>(null);
+
+  // 主题:auto 跟随系统(监听变化),dark/light 手动覆盖;结果写入 <html data-theme>
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const apply = () => {
+      const resolved = settings.theme === "auto" ? (media.matches ? "light" : "dark") : settings.theme;
+      root.dataset.theme = resolved;
+    };
+    apply();
+    if (settings.theme === "auto") {
+      media.addEventListener("change", apply);
+      return () => media.removeEventListener("change", apply);
+    }
+    return undefined;
+  }, [settings.theme]);
 
   function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((prev) => {
@@ -406,7 +447,7 @@ export default function App() {
     <div className="page">
       <header className="header">
         <div className="header-text">
-          <h1>我的世界模组比较器</h1>
+          <h1>Minecraft 模组比较器</h1>
           <p className="subtitle">选择另一个模组文件夹，自动对比模组的新增、移除与版本变化</p>
         </div>
         <div className="header-filter">
@@ -469,6 +510,9 @@ export default function App() {
           placeholder="选择基准模组文件夹(游戏根目录或 mods 目录)"
           buttonLabel="选择基准文件夹"
           scanning={progress?.slot === "base" ? progress.p : null}
+          showUser={settings.showUser}
+          showHost={settings.showHost}
+          showDisabledHint={disabledFilter === "enabled"}
           onPick={() => void pickFolder("base")}
         />
         <div className="slots-arrow">→</div>
@@ -476,11 +520,15 @@ export default function App() {
           title="对比列表"
           data={target}
           placeholder={
-            base ? "选择另一个模组文件夹开始对比" : "先在左侧选择基准文件夹,或直接选择两个文件夹中的另一个"
+            base ? "选择另一个游戏根目录或模组文件夹开始对比" : "先在左侧选择基准文件夹,或直接选择两个文件夹中的另一个"
           }
           buttonLabel="选择对比文件夹"
           modsCount={filteredTarget?.mods.length ?? 0}
+          delta={diff?.stats ?? null}
           scanning={progress?.slot === "target" ? progress.p : null}
+          showUser={settings.showUser}
+          showHost={settings.showHost}
+          showDisabledHint={disabledFilter === "enabled"}
           onPick={() => void pickFolder("target")}
         />
       </section>
@@ -734,6 +782,21 @@ export default function App() {
               </select>
             </div>
             <div className="setting-row">
+              <label htmlFor="set-theme">主题外观</label>
+              <select
+                id="set-theme"
+                className="select"
+                value={settings.theme}
+                onChange={(e) => updateSetting("theme", e.target.value as ThemeMode)}
+              >
+                {THEME_OPTIONS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="setting-row">
               <label htmlFor="set-index">默认显示序号列</label>
               <input
                 id="set-index"
@@ -790,6 +853,24 @@ export default function App() {
                 onChange={(e) => updateSetting("showTooltip", e.target.checked)}
               />
             </div>
+            <div className="setting-row">
+              <label htmlFor="set-show-user">卡片显示系统用户名</label>
+              <input
+                id="set-show-user"
+                type="checkbox"
+                checked={settings.showUser}
+                onChange={(e) => updateSetting("showUser", e.target.checked)}
+              />
+            </div>
+            <div className="setting-row">
+              <label htmlFor="set-show-host">卡片显示电脑名称</label>
+              <input
+                id="set-show-host"
+                type="checkbox"
+                checked={settings.showHost}
+                onChange={(e) => updateSetting("showHost", e.target.checked)}
+              />
+            </div>
             <div className="modal-footer">
               版本 v{APP_VERSION} · 作者: {APP_AUTHOR}
             </div>
@@ -804,12 +885,37 @@ function FolderCard(props: {
   title: string;
   data: ScanData | null;
   modsCount: number;
+  delta?: DiffStats | null;
   placeholder: string;
   buttonLabel: string;
   scanning: ScanProgress | null;
+  showUser: boolean;
+  showHost: boolean;
+  showDisabledHint: boolean;
   onPick: () => void;
 }) {
-  const { title, data, modsCount, placeholder, buttonLabel, scanning, onPick } = props;
+  const {
+    title,
+    data,
+    modsCount,
+    delta,
+    placeholder,
+    buttonLabel,
+    scanning,
+    showUser,
+    showHost,
+    showDisabledHint,
+    onPick,
+  } = props;
+
+  let disabledCount = 0;
+  if (data) {
+    for (const mod of data.mods) {
+      if (mod.disabled) disabledCount += 1;
+    }
+  }
+  const deltaTotal = delta ? delta.added + delta.removed + delta.up + delta.down : 0;
+
   return (
     <div className="card">
       <div className="card-head">
@@ -849,9 +955,45 @@ function FolderCard(props: {
           </div>
         </div>
       )}
-      <button type="button" className="btn" onClick={onPick} disabled={!!scanning}>
-        {buttonLabel}
-      </button>
+      <div className="card-footer">
+        {data && (
+          <div className="card-stats">
+            {showUser && data.source.user && (
+              <span className="chip-sys" title="扫描时所在系统的用户名">
+                {data.source.user}
+              </span>
+            )}
+            {showHost && data.source.host && (
+              <span className="chip-sys" title="扫描时所在电脑名称">
+                {data.source.host}
+              </span>
+            )}
+            {showDisabledHint && disabledCount > 0 && (
+              <span className="chip-disabled" title="当前筛选为「仅启用」,已禁用模组未计入分析">
+                已禁用 {disabledCount}
+              </span>
+            )}
+            {delta && deltaTotal > 0 && (
+              <span className="chip-delta" title="相比基准列表:新增 + / 移除 - / 升级 ↑ / 降级 ↓">
+                <span className="delta-label">对比</span>
+                {delta.added > 0 && <span className="delta-added">+{delta.added}</span>}
+                {delta.removed > 0 && <span className="delta-removed">-{delta.removed}</span>}
+                {delta.up > 0 && <span className="delta-up">↑{delta.up}</span>}
+                {delta.down > 0 && <span className="delta-down">↓{delta.down}</span>}
+              </span>
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          className={data ? "btn btn-auto" : "btn"}
+          onClick={onPick}
+          disabled={!!scanning}
+          title={data ? "重新选择文件夹" : buttonLabel}
+        >
+          {buttonLabel}
+        </button>
+      </div>
     </div>
   );
 }
@@ -859,7 +1001,10 @@ function FolderCard(props: {
 function StatTile(props: { label: string; value: number; tone: string; detail?: string }) {
   return (
     <div className={`stat stat-${props.tone}`}>
-      <div className="stat-value">{props.value}</div>
+      {/* key 绑定数值:数字变化时重新挂载以重放动画 */}
+      <div className="stat-value" key={props.value}>
+        {props.value}
+      </div>
       <div className="stat-label">{props.label}</div>
       {props.detail && <div className="stat-detail">{props.detail}</div>}
     </div>
