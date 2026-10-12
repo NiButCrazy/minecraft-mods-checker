@@ -153,6 +153,7 @@ minecraft-mods-checker/
 
 | 版本 | 变更 |
 | --- | --- |
-| 1.0.2 | 打包:`--pack --exe` 生成带图标的轻量 exe(distlib 启动器 + rcedit,pythonw 无控制台);应用图标统一为 `app/assets/logo.png`;发行流程改在 Windows runner 构建并同时附带 pyz 与 exe |
+| 1.1.1 | 打包:`--pack --exe` 生成带图标的轻量 exe(distlib 启动器 + rcedit,pythonw 无控制台);应用图标统一为 `app/assets/logo.png`;发行流程改在 Windows runner 构建并同时附带 pyz 与 exe |
+| 1.1.0 | 界面样式大修:前端深色/浅色主题与动效、卡片信息行、设置面板,GUI 后台扫描进度、列头排序、系统信息采集 |
 | 1.0.1 | 加载器判定调整:mods.toml(含 neoforge.mods.toml)统一视为 Forge 且优先级最高,混合包判为 Forge |
 | 1.0.0 | 首个版本:目录自动识别、Fabric/Quilt/Forge(含 NeoForge)元数据读取、已禁用标注、CLI/GUI、单文件对比页(筛选/排除/排序/序号/设置持久化/图标内联)、zipapp 单文件打包 |

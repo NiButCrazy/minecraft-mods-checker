@@ -16,7 +16,7 @@ type ExcludeKey = "none" | "delete" | "backspace" | "e";
 type ThemeMode = "auto" | "dark" | "light";
 type Slot = "base" | "target";
 
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.1.1";
 const APP_AUTHOR = "Ni But Crazy";
 const SETTINGS_KEY = "mc-mods-checker:settings";
 
